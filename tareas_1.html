@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Gestor de Tareas</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            pastelGreen: '#B8E0D2',
+            pastelRed: '#F7A6A6'
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-gray-100 p-6 font-sans">
+  <div class="max-w-xl mx-auto bg-white p-6 rounded-lg shadow-md">
+    <h1 class="text-xl font-bold mb-4">Gestión de Tareas</h1>
+
+    <div class="mb-4">
+      <label class="block font-semibold mb-1">Nueva tarea:</label>
+      <input id="newTask" type="text" class="border p-2 w-full" placeholder="Escribe una nueva tarea">
+      <button onclick="addTask()" class="mt-2 bg-pastelGreen text-white px-4 py-2 rounded hover:bg-green-400">Añadir</button>
+    </div>
+
+    <h2 class="font-semibold mb-2">Tareas actuales:</h2>
+    <ul id="taskList" class="space-y-2"></ul>
+  </div>
+
+  <script>
+    function loadTasks() {
+      const tasks = JSON.parse(localStorage.getItem("tareas") || "[]");
+      const list = document.getElementById("taskList");
+      list.innerHTML = "";
+
+      tasks.forEach((task, index) => {
+        const li = document.createElement("li");
+        li.className = "flex justify-between items-center bg-gray-50 p-2 rounded";
+
+        const span = document.createElement("span");
+        span.textContent = task;
+
+        const btn = document.createElement("button");
+        btn.textContent = "Eliminar";
+        btn.className = "bg-pastelRed text-white px-3 py-1 rounded hover:bg-red-400";
+        btn.onclick = () => {
+          tasks.splice(index, 1);
+          localStorage.setItem("tareas", JSON.stringify(tasks));
+          loadTasks();
+        };
+
+        li.appendChild(span);
+        li.appendChild(btn);
+        list.appendChild(li);
+      });
+    }
+
+    function addTask() {
+      const input = document.getElementById("newTask");
+      const value = input.value.trim();
+      if (!value) return;
+      const tasks = JSON.parse(localStorage.getItem("tareas") || "[]");
+      if (!tasks.includes(value)) {
+        tasks.push(value);
+        localStorage.setItem("tareas", JSON.stringify(tasks));
+        input.value = "";
+        loadTasks();
+      }
+    }
+
+    window.onload = loadTasks;
+  </script>
+</body>
+</html>
