@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>App Fichajes de Trabajadores</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link rel="manifest" href="manifest.json" />
+<meta name="theme-color" content="#265A4D" />
+  <script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        fontFamily: {
+          sans: ['Inter', 'sans-serif'],
+        },
+        colors: {
+          pastelBlue: '#A2C3E8',
+          pastelGreen: '#B8E0D2',
+          pastelYellow: '#FFF1A6',
+          pastelRed: '#F7A6A6',
+          pastelPurple: '#D3BBDD',
+          pastelGray: '#F4F4F4',
+          beige: '#EFE9DD'
+        }
+      }
+    }
+  }
+</script>
+
+</head>
+
+<button id="installBtn" class="fixed bottom-4 right-4 bg-pastelGreen text-white px-4 py-2 rounded shadow-lg hidden">
+  Instalar app
+</button>
+
+<body class="bg-pastelGray p-6 font-sans">
+ <div class="max-w-4xl mx-auto bg-softBeige p-6 rounded-xl shadow-lg">
+    <h1 class="text-2xl font-bold mb-4">Fichajes Juan Jimeno</h1>
+
+    
+
+ <!-- Crear/Eliminar trabajadores -->
+<div class="mb-4" id="createWorkerSection">
+  <div id="workerNameSection">
+    <label class="block font-semibold">Nombre del trabajador</label>
+    <input id="workerName" type="text" class="border p-2 w-full mt-1" placeholder="Nombre del trabajador">
+  </div>
+  <button id="addWorkerBtn" onclick="addWorker()" class="mt-2 bg-pastelBlue text-white px-4 py-2 rounded hover:bg-blue-300">Añadir trabajador</button>
+</div>
+
+<!-- Seleccionar trabajador -->
+    <div class="mb-4">
+      <label class="block font-semibold">Seleccionar trabajador</label>
+      <select id="workerSelect" class="border p-2 w-full mt-1" onchange="loadWorkerData()">
+        <option value="todos">Todos los trabajadores</option>
+      </select>
+    </div>
+
+<!-- Enlace personal -->
+<div class="mb-4" id="linkSection">
+  <label class="block font-semibold">Enlace personal del trabajador</label>
+  <div class="flex gap-2">
+    <input id="personalLink" type="text" readonly class="border p-2 w-full">
+    <button onclick="copyLink()" class="bg-pastelGreen text-white px-4 py-2 rounded hover:bg-green-300">Copiar</button>
+  </div>
+  <p id="copyMessage" class="text-sm text-green-600 mt-1 hidden">¡Copiado al portapapeles!</p>
+</div>
+
+
+
+<!-- Botón para gestionar tareas -->
+<div class="mb-4" id="taskManagerSection">
+  <button onclick="openTaskManager()" class="bg-pastelPurple text-white px-4 py-2 rounded hover:bg-purple-300">
+    Gestionar tareas
+  </button>
+</div>
+
+
+
+    <!-- Fecha -->
+    <div class="mb-4">
+      <label class="block font-semibold">Fecha</label>
+      <input id="dateSelect" type="date" class="border p-2 w-full" onchange="loadWorkerData()">
+    </div>
+
+    <!-- Fichaje automático -->
+    <div class="mb-4">
+      <button onclick="startTimer()" class="bg-pastelBlue text-white px-4 py-2 rounded hover:bg-blue-300">Inicio</button>
+      <button onclick="stopTimer()" class="ml-2 bg-pastelRed text-white px-4 py-2 rounded hover:bg-red-300">Fin</button>
+      <div id="timerDisplay" class="mt-2 font-mono text-xl">00:00:00</div>
+    </div>
+
+    <!-- Fichaje manual -->
+    <div class="mb-4">
+      <label class="block font-semibold">Fichaje manual</label>
+      <div class="flex gap-2">
+        <input id="manualStart" type="time" class="border p-2">
+        <input id="manualEnd" type="time" class="border p-2">
+        <button onclick="manualEntry()" class="bg-gray-500 text-white px-4 py-2 rounded hover:bg-gray-600">Registrar</button>
+      </div>
+    </div>
+
+    <!-- Registro diario editable -->
+    <div class="mb-4">
+      <h2 class="font-bold">Registro diario</h2>
+      <ul id="dailyLog" class="list-none pl-0 mt-2"></ul>
+    </div>
+
+<!-- Exportar datos -->
+<div class="mb-4" id="exportSection">
+  <h2 class="font-bold">Exportar a XML</h2>
+  <select id="monthExport" class="border p-2"></select>
+  <select id="yearExport" class="border p-2 ml-2"></select>
+  <button onclick="exportXML()" class="ml-2 bg-pastelYellow text-white px-4 py-2 rounded hover:bg-yellow-300">Exportar</button>
+</div>
+
+
+
+    <!-- Resumen mensual -->
+    <div class="mb-4">
+      <h2 class="font-bold">Resumen mensual</h2>
+      <div id="monthlySummary"></div>
+    </div>
+  </div>
+
+
+
+  <!-- Sección de enlaces personalizados (solo visible para admin) -->
+<div class="mb-4" id="personalLinksSection" style="display: none;">
+  <h2 class="font-bold mb-2">Enlaces personalizados de los trabajadores</h2>
+  <ul id="linksList" class="list-disc pl-4 space-y-2"></ul>
+</div>
+
+  <script>
+    let timerInterval;
+    let startTime;
+
+    function getToday() {
+      return new Date().toISOString().split('T')[0];
+    }
+
+    document.getElementById("dateSelect").value = getToday();
+    const monthExport = document.getElementById("monthExport");
+    const yearExport = document.getElementById("yearExport");
+    const currentYear = new Date().getFullYear();
+    for (let i = 1; i <= 12; i++) {
+      const option = document.createElement("option");
+      option.value = i;
+      option.innerText = new Date(0, i - 1).toLocaleString('es', { month: 'long' });
+      if (i === new Date().getMonth() + 1) option.selected = true;
+      monthExport.appendChild(option);
+    }
+    for (let y = currentYear - 5; y <= currentYear + 5; y++) {
+      const option = document.createElement("option");
+      option.value = y;
+      option.innerText = y;
+      if (y === currentYear) option.selected = true;
+      yearExport.appendChild(option);
+    }
+
+    function addWorker() {
+      const name = document.getElementById("workerName").value.trim();
+      if (!name) return;
+      let workers = JSON.parse(localStorage.getItem("workers") || "[]");
+      if (!workers.includes(name)) {
+        workers.push(name);
+        localStorage.setItem("workers", JSON.stringify(workers));
+        updateWorkerSelect();
+      }
+    }
+
+
+window.onload = () => {
+  const params = new URLSearchParams(window.location.search);
+  const trabajadorParam = params.get("trabajador");
+
+  // Refrescar lista de tareas automáticamente cada 10 segundos
+  let lastTaskList = localStorage.getItem("tareas");
+  setInterval(() => {
+    const currentTasks = localStorage.getItem("tareas");
+    if (currentTasks !== lastTaskList) {
+      lastTaskList = currentTasks;
+      loadWorkerData();
+    }
+  }, 10000);
+
+  // Si accede por enlace personalizado, guardar
+  if (trabajadorParam) {
+    localStorage.setItem("trabajadorActual", trabajadorParam);
+  }
+
+  // Redirigir si ya se había guardado el trabajador
+  const storedParam = localStorage.getItem("trabajadorActual");
+  if (!trabajadorParam && storedParam) {
+    window.location.search = `?trabajador=${storedParam}`;
+    return;
+  }
+
+  // === MODO TRABAJADOR ===
+  if (trabajadorParam) {
+    const decodedWorker = atob(trabajadorParam);
+    const workerSelect = document.getElementById("workerSelect");
+    workerSelect.innerHTML = `<option value="${decodedWorker}" selected>${decodedWorker}</option>`;
+    workerSelect.disabled = true;
+
+    // Ocultar zonas del administrador
+    document.getElementById("exportSection").style.display = "none";
+    document.getElementById("taskManagerSection").style.display = "none";
+    document.getElementById("linkSection").style.display = "none";
+    document.getElementById("addWorkerBtn").style.display = "none";
+    document.getElementById("workerNameSection").style.display = "none";
+
+    loadWorkerData();
+  }
+
+  // === MODO ADMINISTRADOR ===
+  else {
+    const baseWorkers = ["Miguel", "Unai", "Saul"];
+    let workers = JSON.parse(localStorage.getItem("workers") || "[]");
+
+    // Fusionar trabajadores base con los ya creados (sin duplicados)
+    baseWorkers.forEach(name => {
+      if (!workers.includes(name)) workers.push(name);
+    });
+
+    // Guardar lista final actualizada
+    localStorage.setItem("workers", JSON.stringify(workers));
+
+    updateWorkerSelect();
+    mostrarEnlacesTrabajadores();
+  }
+};
+
+
+
+
+    function updateWorkerSelect() {
+      const select = document.getElementById("workerSelect");
+      const current = select.value;
+      select.innerHTML = '<option value="todos">Todos los trabajadores</option>';
+      const workers = JSON.parse(localStorage.getItem("workers") || "[]");
+      workers.forEach(w => {
+        const opt = document.createElement("option");
+        opt.value = w;
+        opt.textContent = w;
+        select.appendChild(opt);
+      });
+      select.value = current;
+    }
+
+    function loadWorkerData() {
+   const worker = document.getElementById("workerSelect").value;
+  const date = document.getElementById("dateSelect").value;
+  const key = `${worker}_${date}`;
+  const log = JSON.parse(localStorage.getItem(key) || "[]");
+  const ul = document.getElementById("dailyLog");
+  ul.innerHTML = "";
+  const tasks = JSON.parse(localStorage.getItem("tareas") || "[]");
+
+  log.forEach((entry, index) => {
+    const [start, end, worked, tareas] = entry.split("|");
+    if (!start || !end || !worked) return;
+    const li = document.createElement("li");
+    li.classList.add("mb-1", "flex", "items-center", "gap-2", "flex-wrap");
+
+    const inputStart = document.createElement("input");
+    inputStart.type = "time";
+    inputStart.value = start;
+    inputStart.className = "border p-1";
+
+    const inputEnd = document.createElement("input");
+    inputEnd.type = "time";
+    inputEnd.value = end;
+    inputEnd.className = "border p-1";
+
+    const spanWorked = document.createElement("span");
+    spanWorked.textContent = worked;
+    spanWorked.className = "w-20 text-right";
+
+    const tareaContainer = document.createElement("div");
+    tareaContainer.className = "flex gap-2 items-center";
+
+    const tareaSelect = document.createElement("select");
+    tareaSelect.className = "border p-1";
+    tasks.forEach(task => {
+      const opt = document.createElement("option");
+      opt.value = task;
+      opt.textContent = task;
+      tareaSelect.appendChild(opt);
+    });
+
+    const btnAddTarea = document.createElement("button");
+    btnAddTarea.textContent = "+ Tarea";
+    btnAddTarea.className = "bg-pastelGreen text-white px-2 py-1 rounded hover:bg-green-300";
+
+    const tareaList = document.createElement("ul");
+    tareaList.className = "text-sm list-disc pl-4";
+    const tareaSet = new Set(tareas ? tareas.split(",") : []);
+
+    function renderTareaList() {
+      tareaList.innerHTML = "";
+      tareaSet.forEach(t => {
+        const liT = document.createElement("li");
+        liT.textContent = t;
+        const removeBtn = document.createElement("button");
+        removeBtn.textContent = " ❌";
+        removeBtn.className = "text-red-300 ml-1";
+        removeBtn.onclick = () => {
+          tareaSet.delete(t);
+          renderTareaList();
+        };
+        liT.appendChild(removeBtn);
+        tareaList.appendChild(liT);
+      });
+    }
+
+    renderTareaList();
+
+    btnAddTarea.onclick = () => {
+      const selected = tareaSelect.value;
+      if (!tareaSet.has(selected)) {
+        tareaSet.add(selected);
+        renderTareaList();
+      }
+    };
+
+    tareaContainer.appendChild(tareaSelect);
+    tareaContainer.appendChild(btnAddTarea);
+
+    const btnUpdate = document.createElement("button");
+    btnUpdate.textContent = "Actualizar";
+    btnUpdate.className = "bg-pastelBlue text-white px-2 py-1 rounded hover:bg-blue-300";
+    btnUpdate.onclick = () => {
+      const [h1, m1] = inputStart.value.split(":").map(Number);
+      const [h2, m2] = inputEnd.value.split(":").map(Number);
+      const min1 = h1 * 60 + m1;
+      const min2 = h2 * 60 + m2;
+      const diff = min2 - min1;
+      if (diff <= 0) return;
+      const h = String(Math.floor(diff / 60)).padStart(2, '0');
+      const m = String(diff % 60).padStart(2, '0');
+      const selectedTareas = Array.from(tareaSet).join(",");
+      const updatedEntry = `${inputStart.value}|${inputEnd.value}|${h}:${m}|${selectedTareas}`;
+      updateEntry(index, updatedEntry);
+    };
+
+    const btnDelete = document.createElement("button");
+    btnDelete.textContent = "Eliminar";
+    btnDelete.className = "bg-pastelRed text-white px-2 py-1 rounded hover:bg-red-300";
+    btnDelete.onclick = () => {
+      deleteEntry(index);
+    };
+
+    li.appendChild(inputStart);
+    li.appendChild(document.createTextNode(" - "));
+    li.appendChild(inputEnd);
+    li.appendChild(spanWorked);
+    li.appendChild(tareaContainer);
+    li.appendChild(tareaList);
+    li.appendChild(btnUpdate);
+    li.appendChild(btnDelete);
+    ul.appendChild(li);
+  });
+  document.getElementById("personalLink").value = `?trabajador=${btoa(worker)}`;
+  updateMonthlySummary();
+}
+
+    function updateEntry(index, value) {
+      const worker = document.getElementById("workerSelect").value;
+      const date = document.getElementById("dateSelect").value;
+      const key = `${worker}_${date}`;
+      const log = JSON.parse(localStorage.getItem(key) || "[]");
+      log[index] = value;
+      localStorage.setItem(key, JSON.stringify(log));
+      loadWorkerData();
+    }
+
+    function deleteEntry(index) {
+  const worker = document.getElementById("workerSelect").value;
+  const date = document.getElementById("dateSelect").value;
+  const key = `${worker}_${date}`;
+  const log = JSON.parse(localStorage.getItem(key) || "[]");
+
+  log.splice(index, 1); // Elimina el elemento en esa posición
+  localStorage.setItem(key, JSON.stringify(log));
+  loadWorkerData(); // Recarga la lista actualizada
+}
+
+
+    function copyLink() {
+      const link = document.getElementById("personalLink");
+      navigator.clipboard.writeText(link.value);
+      document.getElementById("copyMessage").classList.remove("hidden");
+      setTimeout(() => document.getElementById("copyMessage").classList.add("hidden"), 2000);
+    }
+
+    function startTimer() {
+      startTime = new Date();
+      timerInterval = setInterval(() => {
+        const diff = new Date(new Date() - startTime);
+        document.getElementById("timerDisplay").textContent = diff.toISOString().substr(11, 8);
+      }, 1000);
+    }
+
+    function stopTimer() {
+      clearInterval(timerInterval);
+      const endTime = new Date();
+      const diff = new Date(endTime - startTime);
+      const worked = diff.toISOString().substr(11, 8);
+      saveEntry(startTime.toTimeString().substr(0, 5), endTime.toTimeString().substr(0, 5), worked);
+    }
+
+    function manualEntry() {
+      const start = document.getElementById("manualStart").value;
+      const end = document.getElementById("manualEnd").value;
+      const [h1, m1] = start.split(":").map(Number);
+      const [h2, m2] = end.split(":").map(Number);
+      const min1 = h1 * 60 + m1;
+      const min2 = h2 * 60 + m2;
+      const diff = min2 - min1;
+      const h = String(Math.floor(diff / 60)).padStart(2, '0');
+      const m = String(diff % 60).padStart(2, '0');
+      saveEntry(start, end, `${h}:${m}`);
+    }
+
+    function saveEntry(start, end, worked) {
+      const worker = document.getElementById("workerSelect").value;
+      const date = document.getElementById("dateSelect").value;
+      const key = `${worker}_${date}`;
+      const log = JSON.parse(localStorage.getItem(key) || "[]");
+      log.push(`${start}|${end}|${worked}`);
+      localStorage.setItem(key, JSON.stringify(log));
+      loadWorkerData();
+    }
+
+  function updateMonthlySummary() {
+    const worker = document.getElementById("workerSelect").value;
+  if (worker === "todos") return;
+  const date = new Date(document.getElementById("dateSelect").value);
+  const year = date.getFullYear();
+  const month = date.getMonth();
+  let totalMin = 0;
+  const tareaResumen = new Map();
+
+  for (let d = 1; d <= 31; d++) {
+    const day = new Date(year, month, d);
+    if (day.getMonth() !== month) continue;
+    const key = `${worker}_${day.toISOString().split('T')[0]}`;
+    const log = JSON.parse(localStorage.getItem(key) || "[]");
+    log.forEach(entry => {
+      const [start, end, worked, tareas] = entry.split("|");
+      if (worked) {
+        const [h, m] = worked.split(":").map(Number);
+        if (!isNaN(h) && !isNaN(m)) totalMin += h * 60 + m;
+      }
+      if (tareas) {
+        tareas.split(",").forEach(t => {
+          const tTrim = t.trim();
+          tareaResumen.set(tTrim, (tareaResumen.get(tTrim) || 0) + 1);
+        });
+      }
+    });
+  }
+
+  const h = String(Math.floor(totalMin / 60));
+  const m = String(totalMin % 60).padStart(2, '0');
+  document.getElementById("monthlySummary").textContent = `Total mes: ${h} horas y ${m} minutos`;
+
+
+}
+
+    function openTaskManager() {
+      window.open("tareas_1.html", "_blank");
+}
+
+
+
+    function exportXML() {
+      const month = document.getElementById("monthExport").value.padStart(2, '0');
+  const year = document.getElementById("yearExport").value;
+  const rows = [["Trabajador", "Fecha", "Entrada", "Salida", "Total", "Tareas"]];
+  const workers = JSON.parse(localStorage.getItem("workers") || "[]");
+  workers.forEach(worker => {
+    for (let d = 1; d <= 31; d++) {
+      const day = `${year}-${month}-${String(d).padStart(2, '0')}`;
+      const key = `${worker}_${day}`;
+      const log = JSON.parse(localStorage.getItem(key) || "[]");
+      log.forEach(entry => {
+        const [start, end, worked, tareas] = entry.split("|");
+        if (start && end && worked) rows.push([worker, day, start, end, worked, tareas || ""]);
+      });
+    }
+  });
+  let csvContent = "data:text/csv;charset=utf-8," + rows.map(e => e.join(",")).join("\n");
+  const encodedUri = encodeURI(csvContent);
+  const link = document.createElement("a");
+  link.setAttribute("href", encodedUri);
+  link.setAttribute("download", `fichajes_${year}_${month}.csv`);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
+
+function mostrarEnlacesTrabajadores() {
+  const trabajadores = JSON.parse(localStorage.getItem("workers") || "[]");
+  const ul = document.getElementById("linksList");
+  ul.innerHTML = "";
+  const baseURL = "https://juanjimeno.github.io/fichaje-app/";
+
+  trabajadores.forEach(nombre => {
+    const enlace = `${baseURL}?trabajador=${btoa(nombre)}`;
+    const li = document.createElement("li");
+
+    const span = document.createElement("span");
+    span.textContent = `${nombre}: ${enlace}`;
+
+    const btn = document.createElement("button");
+    btn.textContent = "Copiar";
+    btn.className = "ml-2 bg-pastelGreen text-white px-2 py-1 rounded hover:bg-green-300 text-sm";
+    btn.onclick = () => {
+      navigator.clipboard.writeText(enlace);
+      btn.textContent = "¡Copiado!";
+      setTimeout(() => btn.textContent = "Copiar", 2000);
+    };
+
+    li.appendChild(span);
+    li.appendChild(btn);
+    ul.appendChild(li);
+  });
+
+  document.getElementById("personalLinksSection").style.display = "block";
+}
+
+  
+    let deferredPrompt;
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault(); // Evita el prompt automático
+  deferredPrompt = e;
+
+  const installBtn = document.getElementById('installBtn');
+  installBtn.classList.remove('hidden');
+
+  installBtn.addEventListener('click', () => {
+    installBtn.classList.add('hidden');
+    deferredPrompt.prompt();
+    deferredPrompt.userChoice.then((choiceResult) => {
+      if (choiceResult.outcome === 'accepted') {
+        console.log('App instalada');
+      } else {
+        console.log('Instalación cancelada');
+      }
+      deferredPrompt = null;
+    });
+  });
+});
+
+  </script>
+</body>
+</html>
+
+<script>
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("sw.js");
+  }
+</script>
+
